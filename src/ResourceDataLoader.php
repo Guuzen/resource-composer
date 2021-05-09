@@ -7,7 +7,7 @@ namespace Guuzen\ResourceComposer;
 interface ResourceDataLoader
 {
     /**
-     * @param string[] $ids
+     * @param array<array-key, string|int> $ids
      *
      * @return array<int, array>
      */

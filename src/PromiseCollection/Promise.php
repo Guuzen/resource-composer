@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\PromiseCollection;
 
-/**
- * @template WriteObject of object
- */
 final class Promise
 {
     /**
@@ -35,10 +32,7 @@ final class Promise
         $this->array       = $array;
     }
 
-    /**
-     * @return array-key|null
-     */
-    public function id()
+    public function id(): int|string|null
     {
         return ($this->idExtractor)($this->array);
     }

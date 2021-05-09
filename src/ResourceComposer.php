@@ -89,7 +89,6 @@ final class ResourceComposer
             $ids[] = $id;
         }
 
-        /** @psalm-suppress MixedArgumentTypeCoercion TODO update psalm */
         $loadedResources = $relatedResource->loader->load(\array_unique($ids));
 
         $collectors            = $this->resourceCollectors($relatedResource->name);
