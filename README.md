@@ -225,6 +225,3 @@ and result will be:
     ],
 ]
 ```
-
-### Custom collector
-Just gives option to do whatever you want inline.

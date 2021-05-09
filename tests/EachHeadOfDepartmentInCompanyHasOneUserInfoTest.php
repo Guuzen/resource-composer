@@ -8,7 +8,7 @@ use Guuzen\ResourceComposer\Config\MainResource;
 use Guuzen\ResourceComposer\Config\RelatedResource;
 use Guuzen\ResourceComposer\Link\OneToOne;
 use Guuzen\ResourceComposer\PromiseCollection\Promise;
-use Guuzen\ResourceComposer\PromiseCollector\CustomCollector;
+use Guuzen\ResourceComposer\PromiseCollector;
 
 final class EachHeadOfDepartmentInCompanyHasOneUserInfoTest extends TestCase
 {
@@ -35,14 +35,15 @@ final class EachHeadOfDepartmentInCompanyHasOneUserInfoTest extends TestCase
         $this->composer->registerRelation(
             new MainResource(
                 'company',
-                new CustomCollector(
-                    function (\ArrayObject $company) {
+                new class() implements PromiseCollector {
+                    public function collect(\ArrayObject $company): array
+                    {
                         $promises = [];
                         /** @var array<int, array{head: array{id: string}}> $departments */
                         $departments = $company['departments'];
                         foreach ($departments as $index => $department) {
                             $promises[] = new Promise(
-                                /** @psalm-suppress UnusedClosureParam */
+                            /** @psalm-suppress UnusedClosureParam */
                                 function (\ArrayObject $company) use ($department): string {
                                     return $department['head']['id'];
                                 },
@@ -59,7 +60,7 @@ final class EachHeadOfDepartmentInCompanyHasOneUserInfoTest extends TestCase
 
                         return $promises;
                     }
-                ),
+                },
             ),
             new OneToOne(),
             new RelatedResource(
