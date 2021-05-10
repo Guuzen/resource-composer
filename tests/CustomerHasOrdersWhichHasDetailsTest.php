@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Guuzen\ResourceComposer\Tests\CustomerHasOrdersWhichHasDetails;
+namespace Guuzen\ResourceComposer\Tests;
 
 use Guuzen\ResourceComposer\Config\MainResource;
 use Guuzen\ResourceComposer\Config\RelatedResource;
 use Guuzen\ResourceComposer\Link\OneToMany;
 use Guuzen\ResourceComposer\Link\OneToOne;
 use Guuzen\ResourceComposer\PromiseCollector\SimpleCollector;
-use Guuzen\ResourceComposer\Tests\TestCase;
 
 final class CustomerHasOrdersWhichHasDetailsTest extends TestCase
 {
@@ -31,12 +30,12 @@ final class CustomerHasOrdersWhichHasDetailsTest extends TestCase
         $this->composer->registerRelation(
             new MainResource('customer', new SimpleCollector('id', 'orders')),
             new OneToMany(),
-            new RelatedResource('order', 'customerId', new OrdersLoader([$order])),
+            new RelatedResource('order', 'customerId', new StubResourceDataLoader([$order])),
         );
         $this->composer->registerRelation(
             new MainResource('order', new SimpleCollector('id', 'details')),
             new OneToOne(),
-            new RelatedResource('orderDetails', 'id', new OrderDetailsLoader([$orderDetails])),
+            new RelatedResource('orderDetails', 'id', new StubResourceDataLoader([$orderDetails])),
         );
 
         $resource = $this->composer->composeOne($customer, 'customer');
