@@ -29,7 +29,7 @@ $userInfo = [
 ```
 Obviously it is not possible to easy join this **resources** from different databases by standard SQL join, but it is possible to do this join on application side (so-called application side joins).
 
-This is just an example and it is easy to assign UserInfo to User, but in real world scenarios there will be list of users with multiple related type of **resources** which will have nested **resources** and you will have to write cycles in cycles and recursive functions every single time.
+This is just an example, and it is easy to assign UserInfo to User, but in real world scenarios there will be list of users with multiple related type of **resources** which will have nested **resources**, and you will have to write cycles in cycles and recursive functions every single time.
 
 To join User with UserInfo you need to:
 
