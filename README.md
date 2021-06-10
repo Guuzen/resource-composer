@@ -29,50 +29,51 @@ $userInfo = [
 ```
 Obviously it is not possible to easy join this **resources** from different databases by standard SQL join, but it is possible to do this join on application side (so-called application side joins).
 
-This is just an example and it is easy to assign UserInfo to User, but in real world scenarios there will be list of users with multiple related type of **resources** which will have nested **resources** and you will have to write cycles in cycles and recursive functions every single time.
+This is just an example, and it is easy to assign UserInfo to User, but in real world scenarios there will be list of users with multiple related type of **resources** which will have nested **resources**, and you will have to write cycles in cycles and recursive functions every single time.
 
 To join User with UserInfo you need to:
 
-1. Describe **main resource** by name and [collector](#promise-collectors).
-2. Choose how User and UserInfo related to each other.
-3. Describe **related resource** by name, key by wich UserInfo will be joined and [loader](#loader).
-4. Call `composeOne` (Because we have only one user. In case of list call `compose`) with **main resource** and its name.
+1. Describe **main resource**
 ```php
-$composer = new ResourceComposer();
-$composer->registerRelation(
-    new MainResource(
-        'User', // name of the main resource to join.
-        new SimpleCollector(
-            'id', // field in User by which join will took place
-            'user_info', // field in User to which related resource will be written
-        ),
-    OneToOne(), // User has one UserInfo
-    new RelatedResource(
-        'UserInfo', // name of the related resource to join.
-        'user_id', // UserInfo will be joined by user_id
-        new UserInfoLoader($connection), // loader for UserInfo
-    ),
-);
-$userWithInfo = $composer->composeOne($user, 'User');
+final class User extends DefaultMainResource
+{
+    protected function config(): void
+    {
+        $this->hasOne(
+            resource: UserInfo::class, // see below
+            joinBy: 'id', // join will be performed by this field of User
+            joinTo: 'user_info', // join will be be made to this field of User
+        );
+    }
+}
 ```
-$userWithInfo will contain:
+
+2. Describe **related resource**
 ```php
-[
-    'id' => '1',
-    'is_active' => true,
-    'user_info' => [
-        'user_id' => '1',
-        'fullname' => 'John Doe',
-]
+final class UserInfo implements RelatedResource
+{
+    private ResourceLoader $resourceLoader;
+
+    public function __construct(ResourceLoader $resourceLoader)
+    {
+        $this->resourceLoader = $resourceLoader;
+    }
+
+    public function loader(): ResourceLoader
+    {
+        return $this->resourceLoader;
+    }
+
+    public function resource(): string
+    {
+        return self::class;
+    }
+}
 ```
-## Loader
 
-Loader is implementation of fetching **related resource** from data storage. It can be database, api etc.
-
-Example implementation for first example and DBAL:
-
+3. Write loader for **related resource** (Doctrine DBAL example)
 ```php
-final class UserInfoLoader implements ResourceDataLoader
+final class UserInfoLoader implements ResourceLoader
 {
     private Connection $db;
 
@@ -91,137 +92,36 @@ final class UserInfoLoader implements ResourceDataLoader
 
         return $userInfos;
     }
-}
-```
-
-## Promise collectors
-
-Promise collectors collect promises for every **main resource**. Promises allow to defer **related resources** loading and assigning **related resources** to **main resources** for preformance reasons.
-You can control how ids from **main resource** will be collected and how assigning **related resources** will be done.
-
-### Simple collector
-Lets see code of `SimpleCollector` from example. It implements `PromiseCollector` interface and return array of promises from its single method.
-```php
-
-final class SimpleCollector implements PromiseCollector
-{
-    private $readKey;
-
-    private $writeKey;
-
-    public function __construct(string $readKey, string $writeKey)
+        
+    public function loadBy(): string
     {
-        $this->readKey  = $readKey;
-        $this->writeKey = $writeKey;
-    }
-
-    public function collect(\ArrayObject $resource): array
-    {
-        return [
-            new Promise(
-                function (\ArrayObject $resource): string|int|null {
-                    return $resource[$this->readKey] ?? null; // this is how id from main resource will be collected
-                },
-                function (\ArrayObject $resource, mixed $writeValue): void {
-                    $resource[$this->writeKey] = $writeValue; // this is how related resource will be written to main resource
-                },
-                $resource
-            )
-        ];
+        return 'user_id';
     }
 }
 ```
 
-### Array collector
-Use case is when **main resource** contains array of ids by which you want to made join.
-
-For example join for Customer that has array of Orders
-```php
-$customer = [
-    'id' => 'nonsense',
-    'orders' => ['1', '2'],
-];
-
-$orders = [
-    ['id' => '1', 'price' => 100],
-    ['id' => '2', 'price' => 200],
-];
-```
-can be configured like this:
+4. Register all resources in ResourceComposer instance
 ```php
 $composer = new ResourceComposer();
-$composer->registerRelation(
-    new MainResource(
-        'Customer',
-        new ArrayCollector('orders', 'orders'),
-    ),
-    OneToOne(),
-    new RelatedResource(
-        'Order', 
-        'id', 
-        new OrderLoader($connection),
-    ),
+$composer->registerMainResource(new User())
+$composer->registerRelatedResource(
+    new UserInfo(
+        new UserInfoLoader($connection)
+    )
 );
-$customerWithOrders = $composer->composeOne($customer, 'Customer');
 ```
-and result will be:
+5. Execute compose or composeList with one or list of Users
+```php
+
+$userWithInfo = $composer->composeOne($user, User::class);
+```
+$userWithInfo will contain:
 ```php
 [
-    'id' => 'nonsense',
-    'orders' => [
-        ['id' => '1', 'price' => 100],
-        ['id' => '2', 'price' => 200],
-    ],
-]
-```
-
-### Merge collector
-Use case is when there is need to merge array of collectors in order to of compose multiple joins with **related resource** of same type but write it to a different fields in **main resource** and do not do request to storage for every field.
-
-For example Application has Files of one type but in different fields.
-```php
-$application = [
-    'id' => 'nonsense',
-    'fileA' => 'typeA',
-    'fileB' => 'typeB',
-];
-
-$fileA = [
-    'id' => 'typeA',
-    'path' => 'some path to A',
-];
-$fileB = [
-    'id' => 'typeB',
-    'path' => 'some path to B',
-];
-```
-can be configured like this:
-```php
-$composer = new ResourceComposer();
-$composer->registerRelation(
-    new MainResource(
-        'Application', 
-        new MergeCollector([
-            new SimpleCollector('fileA', 'fileA'),
-            new SimpleCollector('fileB', 'fileB'),
-        ]),
-    ),
-    OneToOne(),
-    new RelatedResource('File', 'id', new FileLoader($connection)),    
-);
-$applicationWithFiles = $composer->composeOne($application, 'Application');
-```
-and result will be:
-```php
-[
-    'id' => 'nonsense',
-    'fileA' => [
-        'id' => 'typeA',
-        'path' => 'some path to A',
-    ],
-    'fileB' => [
-        'id' => 'typeB',
-        'path' => 'some path to B',
-    ],
+    'id' => '1',
+    'is_active' => true,
+    'user_info' => [
+        'user_id' => '1',
+        'fullname' => 'John Doe',
 ]
 ```

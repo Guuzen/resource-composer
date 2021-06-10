@@ -4,135 +4,137 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer;
 
-use Guuzen\ResourceComposer\Config\MainResource;
-use Guuzen\ResourceComposer\Config\RelatedResource;
-use Guuzen\ResourceComposer\PromiseCollection\Promise;
-use Guuzen\ResourceComposer\PromiseCollection\PromiseCollection;
+use Guuzen\ResourceComposer\Config\JoinPass;
+use Guuzen\ResourceComposer\Config\Link;
 
-/**
- * @psalm-type Config=array{0: MainResource, 1: Link, 2: RelatedResource}
- */
 final class ResourceComposer
 {
     /**
-     * @var PromiseCollection
+     * @var array<int, Link>
      */
-    private $promises;
+    private array $links = [];
 
     /**
-     * @var array<int, Config>
+     * @var array<string, ResourceLoader>
      */
-    private $configs = [];
+    private array $resourceLoaders = [];
 
-    public function __construct()
+    public function registerMainResource(MainResource $mainResource): void
     {
-        $this->promises = new PromiseCollection();
+        $this->links = [...$this->links, ...$mainResource->configs()];
     }
 
-    public function registerRelation(MainResource $mainResource, Link $link, RelatedResource $relatedResource): void
+    public function registerRelatedResource(RelatedResource $relatedResource): void
     {
-        $this->configs[] = [$mainResource, $link, $relatedResource];
+        $this->resourceLoaders[$relatedResource->resource()] = $relatedResource->loader();
     }
 
     /**
-     * @param array<array-key, array> $resources
+     * @param array<int, array> $resources
      *
-     * @return array<array-key, array>
+     * @return array<int, array>
      */
-    public function compose(array $resources, string $resourceType): array
+    public function composeList(array $resources, string $resourceType): array
     {
-        $collectors = $this->resourceCollectors($resourceType);
-        $result     = self::denormalize($resources);
-        $this->promises->remember($result, $collectors);
+        $result    = self::denormalize($resources);
+        $processes = $this->nextPasses([$resourceType]);
 
-        $this->processResources();
+        if ($processes === []) {
+            return $resources;
+        }
+
+        $this->run($processes, [$resourceType => $result]);
 
         return self::normalize($result);
     }
 
-    public function composeOne(array $resource, string $resourceType): array
+    public function compose(array $resource, string $resourceType): array
     {
-        return $this->compose([$resource], $resourceType)[0];
+        return $this->composeList([$resource], $resourceType)[0];
     }
 
-    private function processResources(): void
+    /**
+     * @param array<int, JoinPass>                    $joinPasses
+     * @param array<string, array<int, \ArrayObject>> $resourceGroups
+     */
+    private function run(array $joinPasses, array $resourceGroups): void
     {
-        $promiseGroups = $this->promises->release();
-        if (0 === \count($promiseGroups)) {
+        $relatedLoadedResources = [];
+        $loadedResourcesGroups  = [];
+        foreach ($joinPasses as $joinPass) {
+            $loadIds = [];
+            foreach ($joinPass->links as $mainResource => $links) {
+                $resources = $resourceGroups[$mainResource];
+                foreach ($links as $link) {
+                    foreach ($resources as $resource) {
+                        $loadIds = [...$loadIds, ...$link->join->loadIds($resource)];
+                    }
+                }
+            }
+
+            $resourceLoader  = $this->resourceLoaders[$joinPass->relatedResource];
+            $loadedResources = self::denormalize(
+                $resourceLoader->load(
+                    array_values(array_filter(array_unique($loadIds)))
+                )
+            );
+
+            $relatedLoadedResources[]                          = $joinPass->relatedResource;
+            $loadedResourcesGroups[$joinPass->relatedResource] = $loadedResources;
+
+            foreach ($joinPass->links as $mainResource => $links) {
+                $resources = $resourceGroups[$mainResource];
+                foreach ($links as $link) {
+                    $groups = $link->group->group($loadedResources, $resourceLoader->loadBy());
+                    foreach ($resources as $resource) {
+                        $link->join->resolve($resource, $groups);
+                    }
+                }
+            }
+        }
+
+        $nextPasses = $this->nextPasses($relatedLoadedResources);
+        if ($nextPasses === []) {
             return;
         }
 
-        foreach ($promiseGroups as $configId => $promiseGroup) {
-            $this->resolvePromises($promiseGroup, $configId);
-        }
-
-        $this->processResources();
+        $this->run($nextPasses, $loadedResourcesGroups);
     }
 
     /**
-     * @param array<int, Promise> $promises
-     */
-    private function resolvePromises(array $promises, int $configId): void
-    {
-        /**
-         * @var Link $link
-         * @var RelatedResource $relatedResource
-         */
-        [1 => $link, 2 => $relatedResource] = $this->configs[$configId];
-
-        $ids = [];
-        foreach ($promises as $promise) {
-            $id = $promise->id();
-            if ($id === null) {
-                continue;
-            }
-            $ids[] = $id;
-        }
-
-        $loadedResources = $relatedResource->loader->load(\array_unique($ids));
-
-        $collectors            = $this->resourceCollectors($relatedResource->name);
-        $denormalizedResources = self::denormalize($loadedResources);
-        $this->promises->remember($denormalizedResources, $collectors);
-
-        $groupedResources = $link->group($denormalizedResources, $relatedResource->linkKey);
-
-        foreach ($promises as $promise) {
-            $promiseId = $promise->id();
-            if ($promiseId === null) {
-                $promise->resolve($link->defaultEmptyValue());
-            } else {
-                $promise->resolve($groupedResources[$promiseId] ?? $link->defaultEmptyValue());
-            }
-        }
-    }
-
-    /**
-     * @return array<int, PromiseCollector>
-     */
-    private function resourceCollectors(string $resourceType): array
-    {
-        $collectors = [];
-        foreach ($this->configs as $configId => $config) {
-            /**
-             * @psalm-suppress UnnecessaryVarAnnotation
-             * @var MainResource $mainResource
-             */
-            $mainResource = $config[0];
-            if ($mainResource->name === $resourceType) {
-                $collectors[$configId] = $mainResource->collector;
-            }
-        }
-
-        return $collectors;
-    }
-
-    /**
-     * @param array<array-key, array> $resources
+     * @param array<int, string> $mainResources
      *
-     * @return array<array-key, \ArrayObject>
+     * @return array<int, JoinPass>
      */
-    private static function denormalize(array $resources): array
+    private function nextPasses(array $mainResources): array
+    {
+        $passes = [];
+
+        $relatedResources = [];
+        foreach ($this->links as $link) {
+            if (in_array($link->mainResource, $mainResources, true) === true) {
+                $relatedResources[] = $link->relatedResource;
+            }
+        }
+        $relatedResources = array_unique($relatedResources);
+
+        foreach ($relatedResources as $relatedResource) {
+            $pass = new JoinPass($relatedResource);
+            foreach ($this->links as $link) {
+                $pass->addLink($link);
+            }
+            $passes[] = $pass;
+        }
+
+        return $passes;
+    }
+
+    /**
+     * @param array<int, array> $resources
+     *
+     * @return array<int, \ArrayObject>
+     */
+    public static function denormalize(array $resources): array
     {
         $arrayObjects = [];
         foreach ($resources as $key => $resource) {
@@ -145,9 +147,9 @@ final class ResourceComposer
     /**
      * @psalm-suppress MixedReturnTypeCoercion
      *
-     * @return array<array-key, array>
+     * @return array<int, array>
      */
-    private static function normalize(iterable $iterable): array
+    public static function normalize(iterable $iterable): array
     {
         $result = [];
         /**
