@@ -31,7 +31,7 @@ final class EachApplicationHasOneDifferenFileTypesTest extends TestCase
         $this->composer->registerMainResource(new Application());
         $this->composer->registerRelatedResource(
             new File(
-                new StubResourceLoader([$fileA, $fileB])
+                new StubResourceLoader([$fileA, $fileB], 'id')
             )
         );
 

@@ -16,12 +16,12 @@ final class File implements RelatedResource
         $this->fileLoader = $fileLoader;
     }
 
-    public function getLoader(): ResourceLoader
+    public function loader(): ResourceLoader
     {
         return $this->fileLoader;
     }
 
-    public function getResource(): string
+    public function resource(): string
     {
         return self::class;
     }

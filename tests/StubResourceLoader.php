@@ -10,16 +10,24 @@ final class StubResourceLoader implements ResourceLoader
 {
     private $resources;
 
+    private string $loadBy;
+
     /**
      * @param array<int, array> $resources
      */
-    public function __construct(array $resources)
+    public function __construct(array $resources, string $loadBy)
     {
         $this->resources = $resources;
+        $this->loadBy    = $loadBy;
     }
 
     public function load(array $ids): array
     {
         return $this->resources;
+    }
+
+    public function loadBy(): string
+    {
+        return $this->loadBy;
     }
 }

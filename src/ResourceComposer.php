@@ -17,16 +17,16 @@ final class ResourceComposer
     /**
      * @var array<string, ResourceLoader>
      */
-    private array $loadResources = [];
+    private array $resourceLoaders = [];
 
     public function registerMainResource(MainResource $mainResource): void
     {
-        $this->links = [...$this->links, ...$mainResource->getConfigs()];
+        $this->links = [...$this->links, ...$mainResource->configs()];
     }
 
     public function registerRelatedResource(RelatedResource $relatedResource): void
     {
-        $this->loadResources[$relatedResource->getResource()] = $relatedResource->getLoader();
+        $this->resourceLoaders[$relatedResource->resource()] = $relatedResource->loader();
     }
 
     /**
@@ -72,10 +72,10 @@ final class ResourceComposer
                 }
             }
 
-            $loadResources   = $this->loadResources[$joinPass->relatedResource];
+            $resourceLoader  = $this->resourceLoaders[$joinPass->relatedResource];
             $loadedResources = self::denormalize(
-                $loadResources->load(
-                    array_filter(array_unique($loadIds))
+                $resourceLoader->load(
+                    array_values(array_filter(array_unique($loadIds)))
                 )
             );
 
@@ -85,7 +85,7 @@ final class ResourceComposer
             foreach ($joinPass->links as $mainResource => $links) {
                 $resources = $resourceGroups[$mainResource];
                 foreach ($links as $link) {
-                    $groups = $link->group->group($loadedResources);
+                    $groups = $link->group->group($loadedResources, $resourceLoader->loadBy());
                     foreach ($resources as $resource) {
                         $link->join->resolve($resource, $groups);
                     }

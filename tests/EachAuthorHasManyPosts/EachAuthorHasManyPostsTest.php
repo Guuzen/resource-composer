@@ -31,7 +31,7 @@ final class EachAuthorHasManyPostsTest extends TestCase
         $this->composer->registerMainResource(new Author());
         $this->composer->registerRelatedResource(
             new Post(
-                new StubResourceLoader($posts),
+                new StubResourceLoader($posts, 'authorId'),
             ),
         );
 

@@ -14,14 +14,12 @@ final class Comment extends DefaultMainResource
             resource: Author::class,
             joinBy: 'id',
             joinTo: 'author',
-            groupBy: 'commentId',
         );
 
         $this->hasOne(
             resource: Post::class,
             joinBy: 'id',
             joinTo: 'post',
-            groupBy: 'commentId',
         );
     }
 }

@@ -30,7 +30,7 @@ final class CustomerHasArrayOfOrdersTest extends TestCase
         $this->composer->registerMainResource(new Customer());
         $this->composer->registerRelatedResource(
             new Order(
-                new StubResourceLoader([$order1, $order2])
+                new StubResourceLoader([$order1, $order2], 'id')
             )
         );
 

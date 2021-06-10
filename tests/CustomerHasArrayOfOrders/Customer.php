@@ -14,7 +14,6 @@ final class Customer extends DefaultMainResource
             resource: Order::class,
             joinBy: 'ordersIds',
             joinTo: 'orders',
-            groupBy: 'id',
         );
     }
 }

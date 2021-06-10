@@ -16,12 +16,12 @@ final class Post implements RelatedResource
         $this->loadResources = $loadResources;
     }
 
-    public function getLoader(): ResourceLoader
+    public function loader(): ResourceLoader
     {
         return $this->loadResources;
     }
 
-    public function getResource(): string
+    public function resource(): string
     {
         return self::class;
     }

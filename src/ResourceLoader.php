@@ -12,4 +12,10 @@ interface ResourceLoader
      * @return array<int, array>
      */
     public function load(array $ids): array;
+
+    /**
+     * Field by which resource will be loaded.
+     * Must present in every returned resource from load
+     */
+    public function loadBy(): string;
 }

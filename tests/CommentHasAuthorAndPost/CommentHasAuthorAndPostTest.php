@@ -27,12 +27,12 @@ final class CommentHasAuthorAndPostTest extends TestCase
         $this->composer->registerMainResource(new Comment());
         $this->composer->registerRelatedResource(
             new Author(
-                new StubResourceLoader([$author]),
+                new StubResourceLoader([$author], 'commentId'),
             ),
         );
         $this->composer->registerRelatedResource(
             new Post(
-                new StubResourceLoader([$post]),
+                new StubResourceLoader([$post], 'commentId'),
             ),
         );
 

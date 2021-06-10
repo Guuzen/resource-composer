@@ -17,39 +17,39 @@ abstract class DefaultMainResource implements MainResource
      */
     private $links = [];
 
-    protected function hasOne(string $resource, string $joinBy, string $joinTo, string $groupBy): void
+    protected function hasOne(string $resource, string $joinBy, string $joinTo): void
     {
         $this->links[] = new Link(
             static::class,
             $resource,
-            new GroupOfOne($groupBy),
+            new GroupOfOne(),
             new JoinOne($joinBy, $joinTo),
         );
     }
 
-    protected function hasMany(string $resource, string $joinBy, string $joinTo, string $groupBy): void
+    protected function hasMany(string $resource, string $joinBy, string $joinTo): void
     {
         $this->links[] = new Link(
             static::class,
             $resource,
-            new GroupOfMany($groupBy),
+            new GroupOfMany(),
             new JoinOne($joinBy, $joinTo, []),
         );
     }
 
-    protected function hasArray(string $resource, string $joinBy, string $joinTo, string $groupBy): void
+    protected function hasArray(string $resource, string $joinBy, string $joinTo): void
     {
         $this->links[] = new Link(
             static::class,
             $resource,
-            new GroupOfOne($groupBy),
+            new GroupOfOne(),
             new JoinArray($joinBy, $joinTo),
         );
     }
 
     abstract protected function config(): void;
 
-    public function getConfigs(): array
+    public function configs(): array
     {
         $this->config();
 

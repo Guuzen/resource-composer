@@ -10,5 +10,5 @@ interface MainResource
     /**
      * @return array<int, Link>
      */
-    public function getConfigs(): array;
+    public function configs(): array;
 }

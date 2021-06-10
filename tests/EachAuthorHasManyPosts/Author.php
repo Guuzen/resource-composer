@@ -14,7 +14,6 @@ final class Author extends DefaultMainResource
             resource: Post::class,
             joinBy: 'id',
             joinTo: 'posts',
-            groupBy: 'authorId',
         );
     }
 }

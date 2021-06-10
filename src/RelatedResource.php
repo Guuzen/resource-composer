@@ -5,7 +5,7 @@ namespace Guuzen\ResourceComposer;
 
 interface RelatedResource
 {
-    public function getLoader(): ResourceLoader;
+    public function loader(): ResourceLoader;
 
-    public function getResource(): string;
+    public function resource(): string;
 }

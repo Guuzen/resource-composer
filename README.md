@@ -33,10 +33,26 @@ This is just an example, and it is easy to assign UserInfo to User, but in real 
 
 To join User with UserInfo you need to:
 
-1. Describe **main resource** by name and [collector](#promise-collectors).
-2. Choose how User and UserInfo related to each other.
-3. Describe **related resource** by name, key by wich UserInfo will be joined and [loader](#loader).
-4. Call `composeOne` (Because we have only one user. In case of list call `compose`) with **main resource** and its name.
+1. Describe **main resource**
+```php
+final class User extends DefaultMainResource
+{
+    protected function config(): void
+    {
+        $this->hasOne(
+            resource: UserInfo::class, // see below
+            joinBy: 'id',
+            joinTo: 'user_info',
+            groupBy: 'user_id',
+        );
+    }
+}
+
+```
+
+3. Choose how User and UserInfo related to each other.
+4. Describe **related resource** by name, key by wich UserInfo will be joined and [loader](#loader).
+5. Call `composeOne` (Because we have only one user. In case of list call `compose`) with **main resource** and its name.
 ```php
 $composer = new ResourceComposer();
 $composer->registerRelation(

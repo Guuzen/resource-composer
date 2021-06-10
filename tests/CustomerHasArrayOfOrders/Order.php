@@ -16,12 +16,12 @@ final class Order implements RelatedResource
         $this->orderLoader = $orderLoader;
     }
 
-    public function getLoader(): ResourceLoader
+    public function loader(): ResourceLoader
     {
         return $this->orderLoader;
     }
 
-    public function getResource(): string
+    public function resource(): string
     {
         return self::class;
     }

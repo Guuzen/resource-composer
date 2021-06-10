@@ -8,5 +8,5 @@ interface Group
     /**
      * @param \ArrayObject[] $resources
      */
-    public function group(array $resources): array;
+    public function group(array $resources, string $groupBy): array;
 }

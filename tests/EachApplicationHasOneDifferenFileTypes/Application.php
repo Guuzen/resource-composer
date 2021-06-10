@@ -14,14 +14,12 @@ final class Application extends DefaultMainResource
             resource: File::class,
             joinBy: 'fileA',
             joinTo: 'fileA',
-            groupBy: 'id',
         );
 
         $this->hasOne(
             resource: File::class,
             joinBy: 'fileB',
             joinTo: 'fileB',
-            groupBy: 'id',
         );
     }
 }
