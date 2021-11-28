@@ -4,25 +4,12 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\CustomerHasArrayOfOrders;
 
-use Guuzen\ResourceComposer\ResourceLoader;
-use Guuzen\ResourceComposer\RelatedResource;
-
-final class Order implements RelatedResource
+final class Order
 {
-    private ResourceLoader $orderLoader;
-
-    public function __construct(ResourceLoader $orderLoader)
+    public function __construct(
+        public string $id,
+        public string $price
+    )
     {
-        $this->orderLoader = $orderLoader;
-    }
-
-    public function loader(): ResourceLoader
-    {
-        return $this->orderLoader;
-    }
-
-    public function resource(): string
-    {
-        return self::class;
     }
 }

@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\EachAuthorHasManyPosts;
 
-use Guuzen\ResourceComposer\Config\DefaultMainResource;
-
-final class Author extends DefaultMainResource
+final class Author
 {
-    protected function config(): void
+    /**
+     * @var array<int, Post>
+     */
+    public array $posts;
+
+    public function __construct(public string $id)
     {
-        $this->hasMany(
-            resource: Post::class,
-            joinBy: 'id',
-            joinTo: 'posts',
-        );
     }
 }

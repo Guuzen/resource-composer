@@ -4,22 +4,15 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\CommentHasAuthorAndPost;
 
-use Guuzen\ResourceComposer\Config\DefaultMainResource;
-
-final class Comment extends DefaultMainResource
+final class Comment
 {
-    protected function config(): void
-    {
-        $this->hasOne(
-            resource: Author::class,
-            joinBy: 'id',
-            joinTo: 'author',
-        );
+    public Author $author;
 
-        $this->hasOne(
-            resource: Post::class,
-            joinBy: 'id',
-            joinTo: 'post',
-        );
+    public Post $post;
+
+    public function __construct(
+        public string $id,
+    )
+    {
     }
 }

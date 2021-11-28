@@ -1,127 +1,86 @@
 ## Overview
-This is a library which goal is to simplify arrays (**resources** in terms of library) joins from different data sources (databases, APIs, etc).
-
-There is two resource types in context of one relationship:
-
-**related resource** - will be joined to main resource.
-
-**main resource** - resource to which related resource will be joined.
+This is a library which goal is to simplify object (**resources** in terms of library) joins from different data sources (databases, APIs, etc).
 
 Inspired by https://gist.github.com/fesor/2e1b7cea1b60aa764a9d0da7b7ea2a1d
 
 ## How to use it
-For example - you have **main resource**, let's call it User, which is stored in document database.
-When loaded from database it will look like this: 
+For example - you have Comment, which is stored in document database:
 ```php
-$user = [
-    'id' => '1',
-    'is_active' => true,
-];
+final class Comment
+{
+    public Author $author;
+
+    public function __construct(
+        public string $id,
+    )
+    {
+    }
+}
+
 ```
 
-And **related resource**, let's call it UserInfo, which is stored in relational database.
-It will look like this:
+And Author, which is stored in relational database:
 ```php
-$userInfo = [
-    'user_id' => '1',
-    'fullname' => 'John Doe',
-];
+final class Author
+{
+    public function __construct(
+        public string $id,
+        public string $commentId,
+    )
+    {
+    }
+}
+
 ```
 Obviously it is not possible to easy join this **resources** from different databases by standard SQL join, but it is possible to do this join on application side (so-called application side joins).
 
-This is just an example, and it is easy to assign UserInfo to User, but in real world scenarios there will be list of users with multiple related type of **resources** which will have nested **resources**, and you will have to write cycles in cycles and recursive functions every single time.
+To join Comment with Author you need to write resolver:
 
-To join User with UserInfo you need to:
-
-1. Describe **main resource**
 ```php
-final class User extends DefaultMainResource
+/**
+ * @implements ResourceResolver<Comment, Author>
+ */
+final class CommentHasAuthorResolver implements ResourceResolver
 {
-    protected function config(): void
+    public function __construct(private Storage $storage, private OneToOne $oneToOne)
     {
-        $this->hasOne(
-            resource: UserInfo::class, // see below
-            joinBy: 'id', // join will be performed by this field of User
-            joinTo: 'user_info', // join will be be made to this field of User
-        );
+    }
+
+    // extract all ids from Comment for join Comment with Author
+    public function extractIds(object $resource): \Traversable
+    {
+        yield $resource->id;
+    }
+
+    // load from storage by extracted ids
+    public function load(array $ids): array
+    {
+        return $this->storage->loadByIds($ids);
+    }
+
+    // group and assign loaded resources to Comment
+    public function resolve(object $resource, array $loadedResources): void
+    {
+        $grouped = $this->oneToOne->group($loadedResources, fn(Author $author) => $author->commentId);
+
+        $resource->author = $grouped[$resource->id];
+    }
+
+    // specify for which resource this resolver is
+    public function resourceClass(): string
+    {
+        return Comment::class;
     }
 }
+
 ```
 
-2. Describe **related resource**
+
+Initialize ResourceComposer instance and load related resources
 ```php
-final class UserInfo implements RelatedResource
-{
-    private ResourceLoader $resourceLoader;
-
-    public function __construct(ResourceLoader $resourceLoader)
-    {
-        $this->resourceLoader = $resourceLoader;
-    }
-
-    public function loader(): ResourceLoader
-    {
-        return $this->resourceLoader;
-    }
-
-    public function resource(): string
-    {
-        return self::class;
-    }
-}
+$resolvers = [new CommentHasAuthorResolver(new Storage(), new OneToOne())];
+$composer = ResourceComposer::create($resolvers);
+$composer->loadRelated($comments);
 ```
 
-3. Write loader for **related resource** (Doctrine DBAL example)
-```php
-final class UserInfoLoader implements ResourceLoader
-{
-    private Connection $db;
-
-    public function __construct(Connection $db)
-    {
-        $this->db = $db;
-    }
-
-    public function load(array $userIds): array
-    {
-        $userInfos = $this->db->fetchAllAssociative(
-            'select user_id, fullname from user_info where user_info.user_id in (:user_ids)',
-            ['user_ids' => $userIds],
-            ['user_ids' => Connection::PARAM_STR_ARRAY],
-        );
-
-        return $userInfos;
-    }
-        
-    public function loadBy(): string
-    {
-        return 'user_id';
-    }
-}
-```
-
-4. Register all resources in ResourceComposer instance
-```php
-$composer = new ResourceComposer();
-$composer->registerMainResource(new User())
-$composer->registerRelatedResource(
-    new UserInfo(
-        new UserInfoLoader($connection)
-    )
-);
-```
-5. Execute compose or composeList with one or list of Users
-```php
-
-$userWithInfo = $composer->composeOne($user, User::class);
-```
-$userWithInfo will contain:
-```php
-[
-    'id' => '1',
-    'is_active' => true,
-    'user_info' => [
-        'user_id' => '1',
-        'fullname' => 'John Doe',
-]
-```
+every Comment will contain related Post

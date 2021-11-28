@@ -4,22 +4,17 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\EachApplicationHasOneDifferenFileTypes;
 
-use Guuzen\ResourceComposer\Config\DefaultMainResource;
-
-final class Application extends DefaultMainResource
+final class Application
 {
-    protected function config(): void
-    {
-        $this->hasOne(
-            resource: File::class,
-            joinBy: 'fileA',
-            joinTo: 'fileA',
-        );
+    public File $fileA;
 
-        $this->hasOne(
-            resource: File::class,
-            joinBy: 'fileB',
-            joinTo: 'fileB',
-        );
+    public File $fileB;
+
+    public function __construct(
+        public string $id,
+        public string $fileAId,
+        public string $fileBId,
+    )
+    {
     }
 }

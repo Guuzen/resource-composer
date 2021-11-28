@@ -4,25 +4,9 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\EachAuthorHasManyPosts;
 
-use Guuzen\ResourceComposer\ResourceLoader;
-use Guuzen\ResourceComposer\RelatedResource;
-
-final class Post implements RelatedResource
+final class Post
 {
-    private ResourceLoader $postLoader;
-
-    public function __construct(ResourceLoader $postLoader)
+    public function __construct(public string $id, public string $authorId)
     {
-        $this->postLoader = $postLoader;
-    }
-
-    public function loader(): ResourceLoader
-    {
-        return $this->postLoader;
-    }
-
-    public function resource(): string
-    {
-        return self::class;
     }
 }

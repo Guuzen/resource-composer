@@ -4,25 +4,12 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\CommentHasAuthorAndPost;
 
-use Guuzen\ResourceComposer\ResourceLoader;
-use Guuzen\ResourceComposer\RelatedResource;
-
-final class Author implements RelatedResource
+final class Author
 {
-    private ResourceLoader $loadResources;
-
-    public function __construct(ResourceLoader $loadResources)
+    public function __construct(
+        public string $id,
+        public string $commentId,
+    )
     {
-        $this->loadResources = $loadResources;
-    }
-
-    public function loader(): ResourceLoader
-    {
-        return $this->loadResources;
-    }
-
-    public function resource(): string
-    {
-        return self::class;
     }
 }

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\EachApplicationHasOneDifferenFileTypes;
 
-use Guuzen\ResourceComposer\Tests\StubResourceLoader;
-use Guuzen\ResourceComposer\Tests\TestCase;
+use Guuzen\ResourceComposer\OneToOne;
+use Guuzen\ResourceComposer\ResourceComposer;
+use PHPUnit\Framework\TestCase;
 
 final class EachApplicationHasOneDifferenFileTypesTest extends TestCase
 {
@@ -13,39 +14,22 @@ final class EachApplicationHasOneDifferenFileTypesTest extends TestCase
     {
         $fileAId = '1';
         $fileBId = '2';
-        $fileA   = [
-            'id' => $fileAId,
-        ];
-        $fileB   = [
-            'id' => $fileBId,
-        ];
-
+        $fileA = new File($fileAId);
+        $fileB = new File($fileBId);
         $applicationId = 'nonsense';
-        $application   = [
-            'id'    => $applicationId,
-            'fileA' => $fileAId,
-            'fileB' => $fileBId,
-        ];
-        $applications  = [$application];
+        $application = new Application($applicationId, $fileAId, $fileBId);
+        $applications = [$application];
 
-        $this->composer->registerMainResource(new Application());
-        $this->composer->registerRelatedResource(
-            new File(
-                new StubResourceLoader([$fileA, $fileB], 'id')
-            )
-        );
+        $resolver = new ApplicationHasFilesResolver([$fileA, $fileB], new OneToOne());
+        /** @psalm-suppress InvalidArgument */
+        $composer = ResourceComposer::create([$resolver]);
+        $composer->loadRelated($applications);
 
-        $resources = $this->composer->composeList($applications, Application::class);
+        $expectedApp = new Application($applicationId, $fileAId, $fileBId);
+        $expectedApp->fileA = new File($fileAId);
+        $expectedApp->fileB = new File($fileBId);
 
-        self::assertEquals(
-            [
-                [
-                    'id'    => $applicationId,
-                    'fileA' => $fileA,
-                    'fileB' => $fileB,
-                ]
-            ],
-            $resources,
-        );
+
+        self::assertEquals($expectedApp, $application);
     }
 }

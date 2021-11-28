@@ -4,47 +4,33 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\CommentHasAuthorAndPost;
 
-use Guuzen\ResourceComposer\Tests\StubResourceLoader;
-use Guuzen\ResourceComposer\Tests\TestCase;
+use Guuzen\ResourceComposer\OneToOne;
+use Guuzen\ResourceComposer\ResourceComposer;
+use PHPUnit\Framework\TestCase;
 
 final class CommentHasAuthorAndPostTest extends TestCase
 {
     public function test(): void
     {
         $commentId = '1';
-        $comment   = ['id' => $commentId];
-        $authorId  = 'nonsense';
-        $author    = [
-            'id'        => $authorId,
-            'commentId' => $commentId
-        ];
-        $postId    = 'nonsense';
-        $post      = [
-            'id'        => $postId,
-            'commentId' => $commentId,
-        ];
+        $comment = new Comment($commentId);
+        $authorId = 'nonsense';
+        $author = new Author($authorId, $commentId);
+        $postId = 'nonsense';
+        $post = new Post($postId, $commentId);
 
-        $this->composer->registerMainResource(new Comment());
-        $this->composer->registerRelatedResource(
-            new Author(
-                new StubResourceLoader([$author], 'commentId'),
-            ),
-        );
-        $this->composer->registerRelatedResource(
-            new Post(
-                new StubResourceLoader([$post], 'commentId'),
-            ),
-        );
 
-        $resource = $this->composer->compose($comment, Comment::class);
+        $postResolver = new CommentHasPostResolver([$post], new OneToOne());
+        $authorResolver = new CommentHasAuthorResolver([$author], new OneToOne());
+        /** @psalm-suppress InvalidArgument */
+        $composer = ResourceComposer::create([$postResolver, $authorResolver]);
 
-        self::assertEquals(
-            [
-                'id'     => $commentId,
-                'author' => $author,
-                'post'   => $post,
-            ],
-            $resource,
-        );
+        $composer->loadRelated([$comment]);
+
+        $expectedComment = new Comment($commentId);
+        $expectedComment->post = new Post($postId, $commentId);
+        $expectedComment->author = new Author($authorId, $commentId);
+
+        self::assertEquals($expectedComment, $comment);
     }
 }

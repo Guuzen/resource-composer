@@ -4,167 +4,65 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer;
 
-use Guuzen\ResourceComposer\Config\JoinPass;
-use Guuzen\ResourceComposer\Config\Link;
-
 final class ResourceComposer
 {
     /**
-     * @var array<int, Link>
+     * @param array<class-string, array<class-string<ResourceResolver>, ResourceResolver>> $resolvers
      */
-    private array $links = [];
-
-    /**
-     * @var array<string, ResourceLoader>
-     */
-    private array $resourceLoaders = [];
-
-    public function registerMainResource(MainResource $mainResource): void
+    public function __construct(private array $resolvers)
     {
-        $this->links = [...$this->links, ...$mainResource->configs()];
-    }
-
-    public function registerRelatedResource(RelatedResource $relatedResource): void
-    {
-        $this->resourceLoaders[$relatedResource->resource()] = $relatedResource->loader();
     }
 
     /**
-     * @param array<int, array> $resources
-     *
-     * @return array<int, array>
+     * @param array<int, object> $resources
      */
-    public function composeList(array $resources, string $resourceType): array
+    public function loadRelated(array $resources): void
     {
-        $result    = self::denormalize($resources);
-        $processes = $this->nextPasses([$resourceType]);
-
-        if ($processes === []) {
-            return $resources;
-        }
-
-        $this->run($processes, [$resourceType => $result]);
-
-        return self::normalize($result);
-    }
-
-    public function compose(array $resource, string $resourceType): array
-    {
-        return $this->composeList([$resource], $resourceType)[0];
-    }
-
-    /**
-     * @param array<int, JoinPass>                    $joinPasses
-     * @param array<string, array<int, \ArrayObject>> $resourceGroups
-     */
-    private function run(array $joinPasses, array $resourceGroups): void
-    {
-        $relatedLoadedResources = [];
-        $loadedResourcesGroups  = [];
-        foreach ($joinPasses as $joinPass) {
-            $loadIds = [];
-            foreach ($joinPass->links as $mainResource => $links) {
-                $resources = $resourceGroups[$mainResource];
-                foreach ($links as $link) {
-                    foreach ($resources as $resource) {
-                        $loadIds = [...$loadIds, ...$link->join->loadIds($resource)];
+        $extractedIds = [];
+        foreach ($resources as $resource) {
+            $resourceResolvers = $this->resolvers[$resource::class] ?? [];
+            foreach ($resourceResolvers as $resourceResolver) {
+                foreach ($resourceResolver->extractIds($resource) as $extractedId) {
+                    if ($extractedId === null) {
+                        continue;
                     }
-                }
-            }
-
-            $resourceLoader  = $this->resourceLoaders[$joinPass->relatedResource];
-            $loadedResources = self::denormalize(
-                $resourceLoader->load(
-                    array_values(array_filter(array_unique($loadIds)))
-                )
-            );
-
-            $relatedLoadedResources[]                          = $joinPass->relatedResource;
-            $loadedResourcesGroups[$joinPass->relatedResource] = $loadedResources;
-
-            foreach ($joinPass->links as $mainResource => $links) {
-                $resources = $resourceGroups[$mainResource];
-                foreach ($links as $link) {
-                    $groups = $link->group->group($loadedResources, $resourceLoader->loadBy());
-                    foreach ($resources as $resource) {
-                        $link->join->resolve($resource, $groups);
-                    }
+                    $extractedIds[$resource::class][$resourceResolver::class][] = $extractedId;
                 }
             }
         }
 
-        $nextPasses = $this->nextPasses($relatedLoadedResources);
-        if ($nextPasses === []) {
-            return;
-        }
-
-        $this->run($nextPasses, $loadedResourcesGroups);
-    }
-
-    /**
-     * @param array<int, string> $mainResources
-     *
-     * @return array<int, JoinPass>
-     */
-    private function nextPasses(array $mainResources): array
-    {
-        $passes = [];
-
-        $relatedResources = [];
-        foreach ($this->links as $link) {
-            if (in_array($link->mainResource, $mainResources, true) === true) {
-                $relatedResources[] = $link->relatedResource;
-            }
-        }
-        $relatedResources = array_unique($relatedResources);
-
-        foreach ($relatedResources as $relatedResource) {
-            $pass = new JoinPass($relatedResource);
-            foreach ($this->links as $link) {
-                $pass->addLink($link);
-            }
-            $passes[] = $pass;
-        }
-
-        return $passes;
-    }
-
-    /**
-     * @param array<int, array> $resources
-     *
-     * @return array<int, \ArrayObject>
-     */
-    public static function denormalize(array $resources): array
-    {
-        $arrayObjects = [];
-        foreach ($resources as $key => $resource) {
-            $arrayObjects[$key] = new \ArrayObject($resource);
-        }
-
-        return $arrayObjects;
-    }
-
-    /**
-     * @psalm-suppress MixedReturnTypeCoercion
-     *
-     * @return array<int, array>
-     */
-    public static function normalize(iterable $iterable): array
-    {
-        $result = [];
-        /**
-         * @psalm-var mixed $item
-         * @var array-key   $key
-         */
-        foreach ($iterable as $key => $item) {
-            if (\is_iterable($item) === true) {
-                $result[$key] = self::normalize($item);
-            } else {
-                /** @psalm-suppress MixedAssignment */
-                $result[$key] = $item;
+        $nextPassResources = [];
+        $loadedResources = [];
+        foreach ($extractedIds as $resourceClass => $resourceExtractedIds) {
+            foreach ($resourceExtractedIds as $resolverClass => $resolverExtractedIds) {
+                $resourceResolver = $this->resolvers[$resourceClass][$resolverClass];
+                $loadedResources[$resourceClass][$resolverClass] = $resourceResolver->load($resolverExtractedIds);
+                $nextPassResources = [...$nextPassResources, ...$loadedResources[$resourceClass][$resolverClass]];
             }
         }
 
-        return $result;
+        foreach ($resources as $resource) {
+            $resourceResolvers = $this->resolvers[$resource::class] ?? [];
+            foreach ($resourceResolvers as $resourceResolver) {
+                $resourceResolver->resolve($resource, $loadedResources[$resource::class][$resourceResolver::class]);
+            }
+        }
+
+        if ($nextPassResources !== []) {
+            $this->loadRelated($nextPassResources);
+        }
+    }
+
+    /**
+     * @param iterable<ResourceResolver> $resolvers
+     */
+    public static function create(iterable $resolvers): self
+    {
+        $initResolvers = [];
+        foreach ($resolvers as $resolver) {
+            $initResolvers[$resolver->resourceClass()][$resolver::class] = $resolver;
+        }
+
+        return new self($initResolvers);
     }
 }

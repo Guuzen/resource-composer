@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\CustomerHasArrayOfOrders;
 
-use Guuzen\ResourceComposer\Config\DefaultMainResource;
-
-final class Customer extends DefaultMainResource
+final class Customer
 {
-    protected function config(): void
+    /**
+     * @var list<Order>
+     */
+    public array $orders;
+
+    /**
+     * @param list<string> $ordersIds
+     */
+    public function __construct(
+        public string $id,
+        public array $ordersIds
+    )
     {
-        $this->hasArray(
-            resource: Order::class,
-            joinBy: 'ordersIds',
-            joinTo: 'orders',
-        );
     }
 }
