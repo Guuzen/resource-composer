@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\CommentHasAuthorAndPost;
 
-use Guuzen\ResourceComposer\OneToOne;
 use Guuzen\ResourceComposer\ResourceComposer;
 use PHPUnit\Framework\TestCase;
 
@@ -20,10 +19,10 @@ final class CommentHasAuthorAndPostTest extends TestCase
         $post = new Post($postId, $commentId);
 
 
-        $postResolver = new CommentHasPostResolver([$post], new OneToOne());
-        $authorResolver = new CommentHasAuthorResolver([$author], new OneToOne());
+        $postLink = new CommentHasPost();
+        $authorLink = new CommentHasAuthor();
         /** @psalm-suppress InvalidArgument */
-        $composer = ResourceComposer::create([$postResolver, $authorResolver]);
+        $composer = ResourceComposer::create([$postLink, $authorLink], [new AuthorLoader([$author]), new PostLoader([$post])]);
 
         $composer->loadRelated([$comment]);
 

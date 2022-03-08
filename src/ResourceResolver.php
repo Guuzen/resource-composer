@@ -4,34 +4,24 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer;
 
-/**
- * @template Resource of object
- * @template LoadedResource of object
- */
 interface ResourceResolver
 {
     /**
-     * @param Resource $resource
-     *
-     * @return \Traversable<int, int|string|null>
+     * @return iterable<int, int|string|null>
      */
-    public function extractIds(object $resource): \Traversable;
+    public function extractIds(object $resource): iterable;
 
     /**
      * @param array<int, string|int> $ids
      *
-     * @return array<int, LoadedResource>
+     * @return iterable<int, object>
      */
-    public function load(array $ids): array;
+    public function load(array $ids, ResourceLoader $loader): iterable;
 
     /**
-     * @param Resource                   $resource
-     * @param array<int, LoadedResource> $loadedResources
+     * @param iterable<array-key, object> $loadedResources
      */
-    public function resolve(object $resource, array $loadedResources): void;
+    public function group(iterable $loadedResources): void;
 
-    /**
-     * @return class-string<Resource>
-     */
-    public function resourceClass(): string;
+    public function resolve(object $resource): void;
 }

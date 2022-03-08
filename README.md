@@ -37,33 +37,24 @@ Obviously it is not possible to easy join this **resources** from different data
 To join Comment with Author you need to write resolver:
 
 ```php
-/**
- * @implements ResourceResolver<Comment, Author>
- */
-final class CommentHasAuthorResolver implements ResourceResolver
+final class CommentHasAuthor implements ResourceLink
 {
-    public function __construct(private Storage $storage, private OneToOne $oneToOne)
+    /**
+     * Loader implementation (which must make actual calls to storage) 
+     */
+    public function loaderClass(): string
     {
+        return AuthorLoader::class;
     }
 
-    // extract all ids from Comment for join Comment with Author
-    public function extractIds(object $resource): \Traversable
+    /**
+     * Extract values from all $comment->id
+     * Load linked authors by $author->commentId
+     * Write linked authors to respective $comment->author
+     */
+    public function resolver(): ResourceResolver
     {
-        yield $resource->id;
-    }
-
-    // load from storage by extracted ids
-    public function load(array $ids): array
-    {
-        return $this->storage->loadByIds($ids);
-    }
-
-    // group and assign loaded resources to Comment
-    public function resolve(object $resource, array $loadedResources): void
-    {
-        $grouped = $this->oneToOne->group($loadedResources, fn(Author $author) => $author->commentId);
-
-        $resource->author = $grouped[$resource->id];
+        return new OneToOne('id', 'commentId', 'author');
     }
 
     // specify for which resource this resolver is
@@ -78,8 +69,8 @@ final class CommentHasAuthorResolver implements ResourceResolver
 
 Initialize ResourceComposer instance and load related resources
 ```php
-$resolvers = [new CommentHasAuthorResolver(new Storage(), new OneToOne())];
-$composer = ResourceComposer::create($resolvers);
+$links = [new CommentHasAuthor(new Storage())];
+$composer = ResourceComposer::create($links, new AuthorLoader());
 $composer->loadRelated($comments);
 ```
 

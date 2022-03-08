@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Guuzen\ResourceComposer\Tests\EachAuthorHasManyPosts;
 
-use Guuzen\ResourceComposer\OneToMany;
 use Guuzen\ResourceComposer\ResourceComposer;
 use PHPUnit\Framework\TestCase;
 
@@ -29,9 +28,9 @@ final class EachAuthorHasManyPostsTest extends TestCase
             $post2,
         ];
 
-        $resolver = new AuthorHasManyPostsResolver($posts, new OneToMany());
+        $link = new AuthorHasManyPosts();
         /** @psalm-suppress InvalidArgument */
-        $composer = ResourceComposer::create([$resolver]);
+        $composer = ResourceComposer::create([$link], [new PostLoader($posts)]);
 
         $composer->loadRelated($authors);
 
